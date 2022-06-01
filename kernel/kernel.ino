@@ -1,6 +1,3 @@
-
-
-
 #define d1 13
 #define d2 12
 #define d3 11
@@ -13,7 +10,7 @@
  *     T4 - T = 100ms   -> Led d4 copied from button A1
  */
 
-int Sched_AddT(void (*f)(void), int d, int p);
+int Sched_AddT(void (*f)(void), int delay, int period, int priority);
 
 void toggle(void) {digitalWrite(d4, !digitalRead(d4));}
 
@@ -22,7 +19,7 @@ void t0(void) {
   int A1_new = digitalRead(A1); 
   
   if (A1_new != A1_old)
-    Sched_AddT(toggle, 2000 /* delay */, 0 /* period */);
+    Sched_AddT(toggle, 2000 /* delay */, 0 /* period */,4);
     
   A1_old = A1_new;
 }
@@ -45,6 +42,8 @@ typedef struct {
   void (*func)(void);
   /* activation counter */
   int exec;
+  /* task priority */
+  int priority;
 } Sched_Task_t;
 
 #define NT 20
@@ -70,11 +69,11 @@ int Sched_Init(void){
   interrupts(); // enable all interrupts  
 }
 
-int Sched_AddT(void (*f)(void), int d, int p){
+int Sched_AddT(void (*f)(void), int delay, int period, int priority){ //TODO ordenar ao adicionar
   for(int x=0; x<NT; x++)
     if (!Tasks[x].func) {
-      Tasks[x].period = p;
-      Tasks[x].delay = d;
+      Tasks[x].period = period;
+      Tasks[x].delay = delay;
       Tasks[x].exec = 0;
       Tasks[x].func = f;
       return x;
@@ -88,7 +87,7 @@ void Sched_Schedule(void){
     if(Tasks[x].func){
       if(Tasks[x].delay){
         Tasks[x].delay--;
-      } else {
+      } else {  
         /* Schedule Task */
         Tasks[x].exec++;
         Tasks[x].delay = Tasks[x].period-1;
@@ -108,7 +107,7 @@ void Sched_Dispatch(void){
       Tasks[x].func();
       noInterrupts();
       cur_task = prev_task;
-      /* Delete task if one-shot */
+      /* Delete task if one-shot */ //TODO remove task from list if one-shot
       if(!Tasks[x].period) Tasks[x].func = 0;
     }
   }
@@ -124,24 +123,24 @@ void setup() {
   pinMode(d1, OUTPUT);
   Sched_Init();
 
-  Sched_AddT(t0, 1 /* delay */,   10 /* period */);
-  Sched_AddT(t3, 1 /* delay */,  200 /* period */);
-  Sched_AddT(t2, 1 /* delay */,  500 /* period */);
+  Sched_AddT(t0, 1 /* delay */,   10 /* period */, 0);
+  Sched_AddT(t3, 1 /* delay */,  200 /* period */, 3);
+  Sched_AddT(t2, 1 /* delay */,  500 /* period */, 2);
 
   /* add a bunch of one-shot tasks, that will temporarily take up space in the TCB array */
   /* This forces task t1 to have a lower priority, and leave empty TCB entries for the 
    *  toggle task added by t0.
    */
-  Sched_AddT(toggle, 10 /* delay */,  0 /* period */);
-  Sched_AddT(toggle, 20 /* delay */,  0 /* period */);
-  Sched_AddT(toggle, 30 /* delay */,  0 /* period */);
-  Sched_AddT(toggle, 40 /* delay */,  0 /* period */);
-  Sched_AddT(toggle, 50 /* delay */,  0 /* period */);
-  Sched_AddT(toggle, 60 /* delay */,  0 /* period */);
-  Sched_AddT(toggle, 70 /* delay */,  0 /* period */);
-  Sched_AddT(toggle, 80 /* delay */,  0 /* period */);
+  Sched_AddT(toggle, 10 /* delay */,  0 /* period */,4);
+  Sched_AddT(toggle, 20 /* delay */,  0 /* period */,4);
+  Sched_AddT(toggle, 30 /* delay */,  0 /* period */,4);
+  Sched_AddT(toggle, 40 /* delay */,  0 /* period */,4);
+  Sched_AddT(toggle, 50 /* delay */,  0 /* period */,4);
+  Sched_AddT(toggle, 60 /* delay */,  0 /* period */,4);
+  Sched_AddT(toggle, 70 /* delay */,  0 /* period */,4);
+  Sched_AddT(toggle, 80 /* delay */,  0 /* period */,4);
   
-  Sched_AddT(t1, 1 /* delay */, 1000 /* period */);
+  Sched_AddT(t1, 1 /* delay */, 1000 /* period */,1);
 }
 
 
