@@ -1,24 +1,3 @@
-
-int Sched_AddT(void (*f)(void), int delay, int period, int priority);
-
-typedef struct {
-    /* period in ticks */
-    int period;
-    /* ticks until next activation */
-    int delay;
-    /* function pointer */
-    void (*func)(void);
-    /* activation counter */
-    int exec;
-    /* task priority */
-    int priority;
-} Sched_Task_t;
-
-#define NT 20
-Sched_Task_t Tasks[NT];
-int cur_task = NT;
-
-
 int Sched_Init(void){
     for(int x=0; x<NT; x++)
         Tasks[x].func = 0;
@@ -44,6 +23,7 @@ int Sched_AddT(void (*f)(void), int delay, int period, int priority){ //TODO ord
             Tasks[x].delay = delay;
             Tasks[x].exec = 0;
             Tasks[x].func = f;
+            Tasks[x].priority = priority;
             orderTasks();
             return x;
         }
@@ -78,7 +58,7 @@ void Sched_Dispatch(void){
             noInterrupts();
             cur_task = prev_task;
             /* Delete task if one-shot */ //TODO remove task from list if one-shot
-            if(!Tasks[x].period) removeTask
+            if(!Tasks[x].period) removeTask(x);
         }
     }
 }
@@ -86,7 +66,7 @@ void Sched_Dispatch(void){
 void removeTask(int x){
     Tasks[x].func = 0;
     for (int i = x+1; i < NT; ++i) {
-        Tasks[i-1] = Tasks[i]
+        Tasks[i-1] = Tasks[i];
     }
     Tasks[NT] = (Sched_Task_t){0};
 }
@@ -96,7 +76,7 @@ void orderTasks(){
     while(swapped){
         swapped = 0;
         for (int i = 0; i < NT-1; ++i) {
-            if(Tasks[i].priority > Tasks[i+1].priority){
+            if(Tasks[i].priority < Tasks[i+1].priority){
                 Sched_Task_t temp = Tasks[i];
                 Tasks[i] = Tasks[i+1];
                 Tasks[i+1] = temp;
@@ -104,4 +84,5 @@ void orderTasks(){
             }
         }
     }
+
 }
