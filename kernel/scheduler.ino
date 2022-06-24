@@ -35,6 +35,7 @@ int Sched_AddT(void (*f)(void), int delay, int period, int priority, int stack_s
 
 
 void Sched_Schedule(void){
+    Serial.print("cona");
     for(int x=0; x<NT; x++) {
         if(Tasks[x].func){
             if(Tasks[x].delay){
@@ -54,12 +55,10 @@ void Sched_Dispatch(void){
     int prev_task = cur_task;
     for(int x=0; x<cur_task; x++) {
         if((Tasks[x].func)&&(Tasks[x].state == READY)) {
+            
             Tasks[x].state=RUNNING;
             cur_task = x;
-            interrupts();
-            Tasks[x].func();
-            noInterrupts();
-            cur_task = prev_task;
+            pxCurrentTCB = Tasks[x].stack_ptr;
             /* Delete task if one-shot */
             if(!Tasks[x].period) removeTask(x);
         }

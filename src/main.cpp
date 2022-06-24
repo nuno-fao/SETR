@@ -1,3 +1,6 @@
+#include <Arduino.h>
+
+
 #include <avr/interrupt.h>
 #include "assembly.h"
 
@@ -44,7 +47,7 @@ enum State {
 void vPortYieldFromTick( void ) __attribute__ ( ( naked ) );
 uint8_t *pxPortInitialiseStack( uint8_t* pxTopOfStack, void (*pxCode)(), void *pvParameters );
 // Definitions from scheduler.ino
-int Sched_Init(void);
+void Sched_Init(void);
 int Sched_AddT(void (*f)(void), int delay, int period, int priority, int stack_size, uint8_t* stack_start);
 void Sched_Schedule(void);
 void Sched_Dispatch(void);
@@ -52,9 +55,9 @@ void removeTask(int x);
 void orderTasks();
 
 
-#define TASK_CREATE(name, f, delay, period, priority, stack_size) \
- uint8_t name##_stack[stack_size]; \
- Sched_AddT(f, delay, period, priority, stack_size, name##_stack)
+#define STACK_CREATE(name, stack_size) \
+ uint8_t name##_stack[stack_size];
+ 
 
 // Global variables
 Sched_Task_t Tasks[NT];
@@ -71,9 +74,9 @@ volatile void* volatile pxCurrentTCB = 0;
 void toggle(void) {digitalWrite(d4, !digitalRead(d4));}
 
 
-void t1(void) {digitalWrite(d1, !digitalRead(d1)); Serial.write("Did task 111111");}
-void t2(void) {digitalWrite(d2, !digitalRead(d2)); Serial.write("Did task 222222");}
-void t3(void) {digitalWrite(d3, !digitalRead(d3)); Serial.write("Did task 333333");}
+void t1(void) {digitalWrite(d1, !digitalRead(d1)); }
+void t2(void) {digitalWrite(d2, !digitalRead(d2)); }
+void t3(void) {digitalWrite(d3, !digitalRead(d3)); }
 void t4(void) {digitalWrite(d4,  digitalRead(A1));}
 
 
@@ -122,29 +125,50 @@ uint8_t *pxPortInitialiseStack( uint8_t* pxTopOfStack, void (*pxCode)(), void *p
 }
 
 
+STACK_CREATE(task1, STACK_SIZE_DEFAULT);
+STACK_CREATE(task2, STACK_SIZE_DEFAULT);
+STACK_CREATE(task3, STACK_SIZE_DEFAULT);
+
+
 // the setup function runs once when you press reset or power the board
 void setup() {
 
   Serial.begin(9600);
-  Serial.print("conaaaaaa");
+  Serial.write("yo");
   // initialize digital pin LED_BUILTIN as an output.
   pinMode(d4, OUTPUT);
   pinMode(d3, OUTPUT);
   pinMode(d2, OUTPUT);
   pinMode(d1, OUTPUT);
+
+  delay(1000);
+  Serial.println((long) &task1_stack, HEX);
+  delay(1000);
+  Serial.println((long) &task2_stack, HEX);
+  delay(1000);
+  Serial.println((long) &task3_stack, HEX);
+  delay(1000);
+
+
+
+  Sched_AddT(t1, 50 /* delay */, 10000 /* period */, 3, STACK_SIZE_DEFAULT, task1_stack);
+  Sched_AddT(t2, 50 /* delay */,  10000 /* period */, 2, STACK_SIZE_DEFAULT, task2_stack);
+  Sched_AddT(t3, 50 /* delay */,  10000 /* period */, 1, STACK_SIZE_DEFAULT, task3_stack);
   Sched_Init();
-  TASK_CREATE(task1,t1, 50 /* delay */, 10000 /* period */,3,STACK_SIZE_DEFAULT);
-  TASK_CREATE(task2,t2, 50 /* delay */,  10000 /* period */, 2,STACK_SIZE_DEFAULT);
-  TASK_CREATE(task3,t3, 50 /* delay */,  10000 /* period */, 1,STACK_SIZE_DEFAULT);
-  
-  
+
+
+  while(true){
+    asm("nop");
+  }
 }
 
 /* Interrupt service routine for the RTOS tick. */
 ISR(TIMER1_COMPA_vect, ISR_NAKED){//timer1 interrupt
-
   /* Call the tick function. */
   vPortYieldFromTick();
+
+  
+    //Serial.println("a");
 
   /* Return from the interrupt. If a context
   switch has occurred this will return to a
@@ -171,41 +195,124 @@ void vPortYieldFromTick( void )
   has occurred this will restore the context of
   the task being resumed. */
   portRESTORE_CONTEXT();
+
   /* Return from this naked function. */
   asm volatile ( "ret" );
 }
 
-
-// void vTaskSwitchContext() {
-//     PORTD ^= _BV(STATUS_LED);    // Pisca-pisca no ma no ma ei
-
-//     if(tasks[task]->status == TASK_RUNNING)
-//         tasks[task]->status = TASK_WAITING;
-
-//     PORTD &= ~(_BV(CS_LED)); // turn off iddle task LED
-
-//     // find the highest priority task which is ready (i.e., task->priority is lowest)
-
-//     uint8_t run_next_id = 0;
-//     uint8_t run_next_pr = 255;
-//     for(uint8_t i = 0; i < task_count; i++){
-//         if(tasks[i] && tasks[i]->priority <= run_next_pr && (tasks[i]->status == TASK_READY || tasks[i]->status == TASK_WAITING) && TASK_REQUESTED_MUTEXES_ARE_UNLOCKED) {
-//             run_next_id = i;
-//             run_next_pr = tasks[i]->priority;
-//         }
-//     }
-
-//     task = run_next_id;
-//     tasks[task]->status = TASK_RUNNING;
-//     pxCurrentTCB = &tasks[task]->stack_ptr;
-//     if(run_next_id==0){
-//         PORTD |= _BV(CS_LED); // turn on iddle task LED
-//     }
+void Sched_Init(void){
     
-//     return;
-// }
+    for(int x=0; x<NT; x++)
+        Tasks[x].func = 0;
+    /* Also configures interrupt that periodically calls Sched_Schedule(). */
+    noInterrupts(); // disable all interrupts
+    TCCR1A = 0;
+    TCCR1B = 0;
+    TCNT1 = 0;
 
-// the loop function runs over and over again forever
-void loop() {
-  /* nothing to do */
+    OCR1A = TICK_FREQUENCY;    // compare match register 16MHz/256/2kHz
+    TCCR1B |= (1 << WGM12); // CTC mode
+    TCCR1B |= (1 << CS12); // 256 prescaler
+    TIMSK1 |= (1 << OCIE1A); // enable timer compare interrupt
+    interrupts(); // enable all interrupts
+
+    return;
+
+}
+
+int Sched_AddT(void (*f)(void), int delay1, int period, int priority, int stack_size, uint8_t* stack_start){ //TODO ordenar ao adicionar
+    for(int x=0; x<NT; x++)
+        if (!Tasks[x].func) {
+            Tasks[x].period = period;
+            Tasks[x].delay = delay1;
+            Tasks[x].exec = 0;
+            Tasks[x].func = f;
+            Tasks[x].priority = priority;
+            Tasks[x].stack_ptr = pxPortInitialiseStack(stack_start+stack_size, f, 0);
+            Tasks[x].stack_size = stack_size;
+            Tasks[x].stack_array_ptr = stack_start;
+            Tasks[x].state = DONE;
+            orderTasks();
+            return x;
+        }
+    orderTasks();
+    return -1;
+}
+
+
+void Sched_Schedule(void){
+    
+    for(int x=0; x<NT; x++) {
+        Serial.println((long) Tasks[x].func, HEX);
+        if(Tasks[x].func){
+            if(Tasks[x].delay){
+                Tasks[x].delay--;
+            } else {
+                /* Schedule Task */
+                Tasks[x].exec++;
+                Tasks[x].state = READY;
+                Tasks[x].delay = Tasks[x].period-1;
+
+                
+            }
+        }
+    }
+
+    return;
+}
+
+
+void Sched_Dispatch(void){
+    //int prev_task = cur_task;
+
+    
+    
+    for(int x=0; x<NT; x++) {
+        if((Tasks[x].func)&&(Tasks[x].state == READY)) {
+            if(cur_task==x){
+                return;
+            }
+            Tasks[cur_task].state=WAITING;
+            Tasks[x].state=RUNNING;
+            cur_task = x;
+            pxCurrentTCB = Tasks[x].stack_ptr;
+            //delay(1000);
+            //Serial.println((long) pxCurrentTCB, HEX);
+            //delay(1000);
+
+            
+            /* Delete task if one-shot */ //TODO
+            // if(!Tasks[x].period) removeTask(x);
+
+            return;
+        }
+    }
+    
+}
+
+void removeTask(int x){
+    Tasks[x].func = 0;
+    for (int i = x+1; i < NT; ++i) {
+        Tasks[i-1] = Tasks[i];
+    }
+    Tasks[NT] = (Sched_Task_t){0};
+    return;
+}
+
+void orderTasks(){
+    int swapped = 1;
+    while(swapped){
+        swapped = 0;
+        for (int i = 0; i < NT-1; ++i) {
+            if(Tasks[i].priority < Tasks[i+1].priority){
+                Sched_Task_t temp = Tasks[i];
+                Tasks[i] = Tasks[i+1];
+                Tasks[i+1] = temp;
+                swapped = 1;
+            }
+        }
+    }
+
+    return;
+
 }
