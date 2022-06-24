@@ -7,16 +7,14 @@ int Sched_Init(void){
     TCCR1B = 0;
     TCNT1 = 0;
 
-//OCR1A = 6250; // compare match register 16MHz/256/10Hz
-//OCR1A = 31250; // compare match register 16MHz/256/2Hz
-    OCR1A = 31;    // compare match register 16MHz/256/2kHz
+    OCR1A = TICK_FREQUENCY;    // compare match register 16MHz/256/2kHz
     TCCR1B |= (1 << WGM12); // CTC mode
     TCCR1B |= (1 << CS12); // 256 prescaler
     TIMSK1 |= (1 << OCIE1A); // enable timer compare interrupt
     interrupts(); // enable all interrupts
 }
 
-int Sched_AddT(void (*f)(void), int delay, int period, int priority){ //TODO ordenar ao adicionar
+int Sched_AddT(void (*f)(void), int delay, int period, int priority, int stack_size, uint8_t* stack_start){ //TODO ordenar ao adicionar
     for(int x=0; x<NT; x++)
         if (!Tasks[x].func) {
             Tasks[x].period = period;
@@ -24,6 +22,10 @@ int Sched_AddT(void (*f)(void), int delay, int period, int priority){ //TODO ord
             Tasks[x].exec = 0;
             Tasks[x].func = f;
             Tasks[x].priority = priority;
+            Tasks[x].stack_ptr = pxPortInitialiseStack(stack_start+stack_size, f, 0);
+            Tasks[x].stack_size = stack_size;
+            Tasks[x].stack_array_ptr = stack_start;
+            Tasks[x].state = DONE;
             orderTasks();
             return x;
         }
@@ -40,6 +42,7 @@ void Sched_Schedule(void){
             } else {
                 /* Schedule Task */
                 Tasks[x].exec++;
+                Tasks[x].state = READY;
                 Tasks[x].delay = Tasks[x].period-1;
             }
         }
@@ -50,14 +53,14 @@ void Sched_Schedule(void){
 void Sched_Dispatch(void){
     int prev_task = cur_task;
     for(int x=0; x<cur_task; x++) {
-        if((Tasks[x].func)&&(Tasks[x].exec)) {
-            Tasks[x].exec=0;
+        if((Tasks[x].func)&&(Tasks[x].state == READY)) {
+            Tasks[x].state=RUNNING;
             cur_task = x;
             interrupts();
             Tasks[x].func();
             noInterrupts();
             cur_task = prev_task;
-            /* Delete task if one-shot */ //TODO remove task from list if one-shot
+            /* Delete task if one-shot */
             if(!Tasks[x].period) removeTask(x);
         }
     }
