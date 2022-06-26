@@ -16,7 +16,6 @@
 #define d2  9
 #define d3  7
 
-void iddle_task(void) __attribute__ ( ( OS_task ) );
 void iddle_task(void) { 
     while (true) { 
         asm("nop");
@@ -43,8 +42,8 @@ TASK(idle, 255, 0, 0, 40, &iddle_task);
 //  } 
 //  TASK(example, 1, Hz_1, &name##_f);
 
+    
 
-void task1(void) __attribute__ ( ( OS_task ) );
 void task1(void) { 
     while (true) { 
         /*PLACE CODE HERE*/
@@ -58,20 +57,26 @@ void task1(void) {
 TASK(t1, 1, Hz_1,  0, STACK_SIZE_DEFAULT,&task1);
 
 
-void task2(void) __attribute__ ( ( OS_task ) );
+void delay(int ms){
+    tasks[current_task]->state = TASK_WAITING;
+    tasks[current_task]->delay+=DELAY_TO_TICKS(ms);
+    finish_task();
+}
+
 void task2(void) { 
     while (true) { 
         /*PLACE CODE HERE*/
-        digitalWrite(d2, !digitalRead(d2));    // Toggle
+        digitalWrite(d2, 1);    // Toggle
+        delay(2000);
+        digitalWrite(d2, 0);
         /*DON'T TOUCH PAST THIS LINE*/
         finish_task();
     } 
     return; 
 } 
-TASK(t2, 2, Hz_1, 2000, STACK_SIZE_DEFAULT, &task2);
+TASK(t2, 2, Hz_1, 0, STACK_SIZE_DEFAULT, &task2);
 
 
-void task3(void) __attribute__ ( ( OS_task ) );
 void task3(void) { 
     while (true) { 
         /*PLACE CODE HERE*/
@@ -87,15 +92,12 @@ TASK(t3, 3, Hz_2, 0, STACK_SIZE_DEFAULT, &task3);
 /***************************** END OF TASKS CODE *****************************/
 
 int main() { 
-
     /********************** CONFIGURE REQUIRED HARDWARE **********************/
 
     pinMode(d3, OUTPUT);
     pinMode(d2, OUTPUT);
     pinMode(d1, OUTPUT);
     pinMode(10, OUTPUT);
-
-    
 
     /********************* END OF HARDWARE CONFIGURATION *********************/
 

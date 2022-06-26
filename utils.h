@@ -28,7 +28,7 @@ enum state {
     TASK_DEAD       // One-shot tasks that shall not run again
 };
 /****************** FUNCTION DECLARATIONS *************/
-void vPortYieldFromTick( void ) __attribute__ ( ( naked ) );
+void vPortYieldFromTick( uint8_t ) __attribute__ ( ( naked ) );
 void Sched_Init( void );
 void Sched_Dispatch( void );
 uint8_t *pxPortInitialiseStack( uint8_t* pxTopOfStack, void (*pxCode)(), void *pvParameters );
@@ -40,7 +40,7 @@ uint8_t task_count = 0;             // number of tasks registed
 int current_task = 0;                       //currently executing task
 bool from_suspension = false;
 volatile void* volatile pxCurrentTCB = 0;
-#define finish_task()               from_suspension = true; tasks[current_task]->state = TASK_DONE; vPortYieldFromTick(); 
+#define finish_task()               from_suspension = true; tasks[current_task]->state = TASK_DONE; vPortYieldFromTick(0); 
 
 
 
@@ -89,7 +89,6 @@ uint8_t *pxPortInitialiseStack( uint8_t* pxTopOfStack, void (*pxCode)(), void *p
 }
 
 
-
 #define TASK(name, pr, fr, initial_delay, stack_sz, task) \
  uint8_t name##_stack[stack_sz]; \
  Task name = { \
@@ -132,14 +131,14 @@ void hardwareInit(){
 
 ISR(TIMER1_COMPA_vect, ISR_NAKED) {
     /* Call the tick function. */
-    vPortYieldFromTick();
+    vPortYieldFromTick(1);
     /* Return from the interrupt. If a context
     switch has occurred this will return to a
     different task. */
     asm volatile ( "reti" );
 }
 
-void vPortYieldFromTick( void ) {
+void vPortYieldFromTick(uint8_t is_tick) {
     // This is a naked function so the context
     // must be saved manually. 
     portSAVE_CONTEXT();
@@ -148,9 +147,7 @@ void vPortYieldFromTick( void ) {
     // if the new tick value has caused a delay
     // period to expire. This function call can
     // cause a task to become ready to run.
-    if (!from_suspension)
-        Sched_Init();
-    from_suspension = false;
+    if(is_tick) Sched_Init();
     
     // See if a context switch is required.
     // Switch to the context of a task made ready
