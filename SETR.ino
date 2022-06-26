@@ -1,48 +1,4 @@
-#include "ticks_per_seconds.h"
-
-/*****************************************************************************/
-/******************************* NECESSARY GLOBAL VARS *******************************/
-/*****************************************************************************/
-#define TICK_FREQUENCY      625
-#define STACK_SIZE_DEFAULT  100
-#define MAX_TASKS           20
-/*****************************************************************************/
-
-// Include kernel code
-#include "utils.h" // DO NOT MOVE THIS LINE
-
-
-#define d1  11
-#define d2  9
-#define d3  7
-
-void iddle_task(void) { 
-    while (true) { 
-        asm("nop");
-        finish_task();
-    } 
-    return; 
-} 
-TASK(idle, 255, 0, 0, 40, &iddle_task);
-
-
-
-/**************************** ADD YOUR TASKS HERE ****************************/
-
-
-// void name##_f(void) __attribute__ ( ( OS_task ) );
-//  void name##_f(void) { 
-//     while (true) { 
-//         /*PLACE CODE HERE*/
-
-//         /*DON'T TOUCH PAST THIS LINE*/
-//          finish_task();
-//     } 
-//     return; 
-//  } 
-//  TASK(example, 1, Hz_1, &name##_f);
-
-    
+#include "kernel.h"
 
 void task1(void) { 
     while (true) { 
@@ -53,7 +9,6 @@ void task1(void) {
     } 
     return; 
 } 
-
 TASK(t1, 1, Hz_1,  0, STACK_SIZE_DEFAULT,&task1);
 
 
@@ -87,30 +42,20 @@ void task3(void) {
 TASK(t3, 3, Hz_2, 0, STACK_SIZE_DEFAULT, &task3);
 
 
-/***************************** END OF TASKS CODE *****************************/
-
-int main() { 
+void setupFunction() { 
     /********************** CONFIGURE REQUIRED HARDWARE **********************/
-
     pinMode(d3, OUTPUT);
     pinMode(d2, OUTPUT);
     pinMode(d1, OUTPUT);
     pinMode(10, OUTPUT);
+}
 
-    /********************* END OF HARDWARE CONFIGURATION *********************/
-
-    addTask(&idle,idle_stack); /* DON'T TOUCH THIS */
-
-    /********************* REGISTER TASKS IN THE KERNEL **********************/
-
+void codeFunction(){
     addTask(&t1,t1_stack);
     addTask(&t2,t2_stack);
     addTask(&t3,t3_stack);
-    
-    /***************************** END OF CODE *******************************/
-    
-    hardwareInit(); 
-    while (true) { 
-        asm("nop"); /* interrrupts will stop this. */ 
-    } 
- }
+}
+
+int main(){
+    kernel(setupFunction,codeFunction);
+}
