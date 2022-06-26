@@ -11,6 +11,11 @@
 // Include kernel code
 #include "utils.h" // DO NOT MOVE THIS LINE
 
+
+#define d1  11
+#define d2  9
+#define d3  7
+
 void iddle_task(void) __attribute__ ( ( OS_task ) );
 void iddle_task(void) { 
     while (true) { 
@@ -43,7 +48,7 @@ void task1(void) __attribute__ ( ( OS_task ) );
 void task1(void) { 
     while (true) { 
         /*PLACE CODE HERE*/
-        digitalWrite(13, !digitalRead(13));    // Toggle
+        digitalWrite(d3, !digitalRead(d3));    // Toggle
         /*DON'T TOUCH PAST THIS LINE*/
         finish_task();
     } 
@@ -57,7 +62,7 @@ void task2(void) __attribute__ ( ( OS_task ) );
 void task2(void) { 
     while (true) { 
         /*PLACE CODE HERE*/
-        digitalWrite(12, !digitalRead(12));    // Toggle
+        digitalWrite(d2, !digitalRead(d2));    // Toggle
         /*DON'T TOUCH PAST THIS LINE*/
         finish_task();
     } 
@@ -70,7 +75,7 @@ void task3(void) __attribute__ ( ( OS_task ) );
 void task3(void) { 
     while (true) { 
         /*PLACE CODE HERE*/
-        digitalWrite(11, !digitalRead(11));    // Toggle
+        digitalWrite(d1, !digitalRead(d1));    // Toggle
         /*DON'T TOUCH PAST THIS LINE*/
         finish_task();
     } 
@@ -85,9 +90,9 @@ int main() {
 
     /********************** CONFIGURE REQUIRED HARDWARE **********************/
 
-    pinMode(13, OUTPUT);
-    pinMode(12, OUTPUT);
-    pinMode(11, OUTPUT);
+    pinMode(d3, OUTPUT);
+    pinMode(d2, OUTPUT);
+    pinMode(d1, OUTPUT);
     pinMode(10, OUTPUT);
 
     

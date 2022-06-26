@@ -93,9 +93,10 @@ uint8_t *pxPortInitialiseStack( uint8_t* pxTopOfStack, void (*pxCode)(), void *p
 #define TASK(name, pr, fr, initial_delay, stack_sz, task) \
  uint8_t name##_stack[stack_sz]; \
  Task name = { \
-    .func = task , \
     .stack_ptr = 0, \
     .stack_size = stack_sz, \
+    .stack_array_ptr = 0, \
+    .func = task , \
     .delay = DELAY_TO_TICKS(initial_delay), \
     .priority = pr, \
     .state = TASK_DONE, \
@@ -206,4 +207,3 @@ void Sched_Dispatch() {
     
     return;
 }
-
