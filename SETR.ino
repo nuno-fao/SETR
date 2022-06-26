@@ -66,15 +66,13 @@ void delay(int ms){
 void task2(void) { 
     while (true) { 
         /*PLACE CODE HERE*/
-        digitalWrite(d2, 1);    // Toggle
-        delay(2000);
-        digitalWrite(d2, 0);
+        digitalWrite(d2, !digitalRead(d2));
         /*DON'T TOUCH PAST THIS LINE*/
         finish_task();
     } 
     return; 
 } 
-TASK(t2, 2, Hz_1, 0, STACK_SIZE_DEFAULT, &task2);
+TASK(t2, 2, Hz_1, 2000, STACK_SIZE_DEFAULT, &task2);
 
 
 void task3(void) { 
