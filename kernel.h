@@ -11,10 +11,10 @@
 // Include kernel code
 #include "utils.h" // DO NOT MOVE THIS LINE
 
-
-#define d1  11
-#define d2  12
-#define d3  13
+#define d1  10
+#define d2  11
+#define d3  12
+#define d4  13
 
 void iddle_task(void) { 
     while (true) { 

@@ -2,6 +2,7 @@
 #define Hz_2    31250   // compare match register 16MHz/256/2Hz
 #define Hz_4    15625   // compare match register 16MHz/256/4Hz
 #define Hz_5    12500   // compare match register 16MHz/256/5Hz
+#define Hz_8    7812   // compare match register 16MHz/256/8Hz
 #define Hz_10   6250    // compare match register 16MHz/256/10Hz
 #define Hz_20   3125    // compare match register 16MHz/256/20Hz
 #define Hz_50   1250    // compare match register 16MHz/256/50Hz
