@@ -21,25 +21,31 @@ void delay(int ms){
 void task2(void) { 
     while (true) { 
         /*PLACE CODE HERE*/
+        if(semaphore == 0) blockedtask();
+        semaphore = 0;
         digitalWrite(d2, !digitalRead(d2));
+        semaphore = 1;
         /*DON'T TOUCH PAST THIS LINE*/
         finish_task();
     } 
     return; 
 } 
-TASK(t2, 2, Hz_1, 2000, STACK_SIZE_DEFAULT, &task2);
+TASK(t2, 2, Hz_1, 0, STACK_SIZE_DEFAULT, &task2);
 
 
 void task3(void) { 
     while (true) { 
         /*PLACE CODE HERE*/
+        if(semaphore == 0) blockedtask();
+        semaphore = 0;
         digitalWrite(d1, !digitalRead(d1));    // Toggle
+        semaphore = 1;
         /*DON'T TOUCH PAST THIS LINE*/
         finish_task();
     } 
     return; 
 } 
-TASK(t3, 3, Hz_2, 0, STACK_SIZE_DEFAULT, &task3);
+TASK(t3, 3, Hz_1, 0, STACK_SIZE_DEFAULT, &task3);
 
 
 void setupFunction() { 

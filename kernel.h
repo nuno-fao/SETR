@@ -13,8 +13,8 @@
 
 
 #define d1  11
-#define d2  9
-#define d3  7
+#define d2  12
+#define d3  13
 
 void iddle_task(void) { 
     while (true) { 

@@ -15,9 +15,12 @@ typedef struct {
     uint8_t*            stack_array_ptr;            // Pointer to the task specific stack
     void                (*func)(void);              // Pointer to task function to execute.
     uint16_t            delay;                      
-    const uint8_t       priority;                   // Priority for fixed-priority scheduling
+    uint8_t       priority;                   // Priority for fixed-priority scheduling
     uint8_t             state;                     // Status for scheduling.
     const uint16_t      period;                     // Number of ticks between activations
+    uint8_t       priorityorig;               //original priority
+    uint8_t       blockedflag;                //flag to set a blocked task
+    uint8_t       semaphoreflag;              //flag to set a task using a shared resource
 } Task;
 
 enum state {
@@ -40,8 +43,13 @@ uint8_t task_count = 0;             // number of tasks registed
 int current_task = 0;                       //currently executing task
 bool from_suspension = false;
 volatile void* volatile pxCurrentTCB = 0;
-#define finish_task()               from_suspension = true; tasks[current_task]->state = TASK_DONE; vPortYieldFromTick(0); 
+#define finish_task()               from_suspension = true; tasks[current_task]->state = TASK_DONE; tasks[current_task]->semaphoreflag = 0; vPortYieldFromTick(0); 
 
+bool semaphore = 1;
+#define PIP 0
+#define PCP 1
+
+#define priority_protocol PIP
 
 
 uint8_t *pxPortInitialiseStack( uint8_t* pxTopOfStack, void (*pxCode)(), void *pvParameters ) {
@@ -100,6 +108,9 @@ uint8_t *pxPortInitialiseStack( uint8_t* pxTopOfStack, void (*pxCode)(), void *p
     .priority = pr, \
     .state = TASK_DONE, \
     .period = PERIOD(fr), \
+    .priorityorig = pr,   \
+    .blockedflag = 0,     \
+    .semaphoreflag = 0,     \
  }; 
 
 
@@ -183,8 +194,22 @@ void Sched_Init() {
 
 void Sched_Dispatch() { 
 
-    if(tasks[current_task]->state == TASK_RUNNING)
-        tasks[current_task]->state = TASK_WAITING;
+    if(tasks[current_task]->state == TASK_RUNNING){
+        tasks[current_task]->state = TASK_WAITING;        
+    }
+    
+    #if (priority_protocol == PIP)
+      if( (tasks[current_task]->state == TASK_WAITING) && (tasks[current_task]->blockedflag == 0) && (semaphore == 0)){
+          tasks[current_task]->semaphoreflag = 1;
+      }
+      if( (tasks[current_task]->blockedflag == 1) ){
+        for(uint8_t i = 0; i < task_count; i++){
+          if((tasks[i]->semaphoreflag == 1)){
+             tasks[i]->priority = 0; 
+          }
+        }   
+      }
+    #endif
 
 
     // find the highest priority task which is ready (i.e., task->priority is lowest)
@@ -198,9 +223,17 @@ void Sched_Dispatch() {
         }
     }
 
+    tasks[current_task]->blockedflag == 0;
+    tasks[exec_task]->priority = tasks[exec_task]->priorityorig;
     current_task = exec_task;
     tasks[current_task]->state = TASK_RUNNING;
     pxCurrentTCB = &tasks[current_task]->stack_ptr;
     
     return;
+}
+
+void blockedtask() {
+  tasks[current_task]->blockedflag = 1;
+  vPortYieldFromTick(0);
+  return;
 }
