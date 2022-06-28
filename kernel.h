@@ -1,46 +1,23 @@
 #include "ticks_per_seconds.h"
 
-/*****************************************************************************/
-/******************************* NECESSARY GLOBAL VARS *******************************/
-/*****************************************************************************/
-#define TICK_FREQUENCY      625
-#define STACK_SIZE_DEFAULT  100
-#define MAX_TASKS           20
-/*****************************************************************************/
 
-// Include kernel code
+
 #include "utils.h" // DO NOT MOVE THIS LINE
+#include "pip.h"
 
-#define d1  10
-#define d2  11
-#define d3  12
-#define d4  13
+
+
+typedef struct {
+      Task *task;
+      uint8_t uuid;
+} _semaphore;
+
 
 void iddle_task(void) { 
-    while (true) { 
-        asm("nop");
-        finish_task();
-    } 
-    return; 
+     finish_task();
 } 
-TASK(idle, 255, 0, 0, 40, &iddle_task);
+TASK(idle, 255, 0, 0, 40, iddle_task);
 
-
-
-/**************************** ADD YOUR TASKS HERE ****************************/
-
-
-// void name##_f(void) __attribute__ ( ( OS_task ) );
-//  void name##_f(void) { 
-//     while (true) { 
-//         /*PLACE CODE HERE*/
-
-//         /*DON'T TOUCH PAST THIS LINE*/
-//          finish_task();
-//     } 
-//     return; 
-//  } 
-//  TASK(example, 1, Hz_1, &name##_f);
 
     
 

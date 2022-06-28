@@ -1,5 +1,7 @@
 {
     "files.associations": {
-        "ticks_per_seconds.h": "c"
+        "ticks_per_seconds.h": "c",
+        "typeinfo": "cpp",
+        "*.tcc": "cpp"
     }
 }

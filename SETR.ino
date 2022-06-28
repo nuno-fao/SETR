@@ -1,84 +1,94 @@
+
+#define NORMAL 0
+#define PIP 1
+#define PCP 0
+
+#define TICK_FREQUENCY      625
+#define STACK_SIZE_DEFAULT  100
+#define MAX_TASKS           20
+
 #include "kernel.h"
 
+
+#define d1  11
+#define d2  12
+#define d3  13
+#define d4  10
+
+CREATE_SEMAPHORE(s1);
+
+void task1(void);
+TASK(t1, 1, 1000,  0, STACK_SIZE_DEFAULT,task1);
 void task1(void) { 
-    while (true) { 
-        /*PLACE CODE HERE*/
-        digitalWrite(d1, !digitalRead(d1));    // Toggle
-        /*DON'T TOUCH PAST THIS LINE*/
-        finish_task();
-    } 
-    return; 
+        LOCK(s1,t1);
+        digitalWrite(d3, !digitalRead(d3));    // Toggle
+        UNLOCK(s1);
 } 
-TASK(t1, 1, Hz_1,  0, STACK_SIZE_DEFAULT,&task1);
 
-
-void delay(int ms){
-    tasks[current_task]->state = TASK_WAITING;
+void asyncDelay(int ms){
+    tasks[current_task]->state = TASK_READY;
     tasks[current_task]->delay+=DELAY_TO_TICKS(ms);
     finish_task();
 }
 
+volatile void delay(){
+
+    digitalWrite(d4, !digitalRead(d4));
+    unsigned volatile int i = 0;
+    unsigned volatile int j = 0;
+    unsigned volatile int t = 0;
+    unsigned volatile int u = 0;
+
+    while(t<50000){
+        while(j<50000){
+            while(i<50000){
+                while(u<50000){
+                    asm("nop;");
+                    u++;
+                }
+                i++;
+            }
+            j++;
+        }
+        t++;
+    }
+    
+
+}
+
+void task2(void);
+TASK(t2, 2, 1000, 2000, STACK_SIZE_DEFAULT, task2);
 void task2(void) { 
-    while (true) { 
-        /*PLACE CODE HERE*/
-        if(semaphore == 0) blockedtask();
-        semaphore = 0;
-        semaphoretask();
         digitalWrite(d2, !digitalRead(d2));
-        semaphore = 1;
-        /*DON'T TOUCH PAST THIS LINE*/
-        finish_task();
-    } 
-    return; 
 } 
-TASK(t2, 2, Hz_1, 0, STACK_SIZE_DEFAULT, &task2);
 
-
+void task3(void);
+TASK(t3, 3, 5000, 0, STACK_SIZE_DEFAULT, task3);
 void task3(void) { 
-    while (true) { 
-        /*PLACE CODE HERE*/
-        if(semaphore == 0) blockedtask();
-        semaphore = 0;
-        semaphoretask();
-        digitalWrite(d3, !digitalRead(d3));    // Toggle
-        semaphore = 1;
-        /*DON'T TOUCH PAST THIS LINE*/
-        finish_task();
-    } 
-    return; 
+        LOCK(s1,t3);
+        //asyncDelay(4000);
+        for(int i = 0;i< 10;i++){
+            delay();
+        }
+        digitalWrite(d1, !digitalRead(d1));    // Toggle
+        UNLOCK(s1);
 } 
-TASK(t3, 3, Hz_1, 0, STACK_SIZE_DEFAULT, &task3);
-
-void task4(void) { 
-    while (true) { 
-        /*PLACE CODE HERE*/
-        if(semaphore == 0) blockedtask();
-        semaphore = 0;
-        semaphoretask();
-        digitalWrite(d4, !digitalRead(d4));    // Toggle
-        semaphore = 1;
-        /*DON'T TOUCH PAST THIS LINE*/
-        finish_task();
-    } 
-    return; 
-} 
-TASK(t4, 4, Hz_1, 0, STACK_SIZE_DEFAULT, &task4);
-
 
 
 void setupFunction() { 
     /********************** CONFIGURE REQUIRED HARDWARE **********************/
-    pinMode(d4, OUTPUT);
     pinMode(d3, OUTPUT);
     pinMode(d2, OUTPUT);
     pinMode(d1, OUTPUT);
+    pinMode(d4, OUTPUT);
+
+    Serial.begin(2000000);
 }
 
 void codeFunction(){
     addTask(&t1,t1_stack);
     addTask(&t2,t2_stack);
     addTask(&t3,t3_stack);
-    addTask(&t4,t4_stack);
 }
 
 int main(){

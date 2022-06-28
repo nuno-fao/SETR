@@ -4,7 +4,6 @@
 
 #include "ticks_per_seconds.h"
 
-#define PERIOD(freq_in_Hz_ints) freq_in_Hz_ints/TICK_FREQUENCY
 #define DELAY_TO_TICKS(d) (uint16_t)(d*((double)Hz_1k)/((double)TICK_FREQUENCY))
 
 
@@ -16,22 +15,25 @@ typedef struct {
     void                (*func)(void);              // Pointer to task function to execute.
     uint16_t            delay;                      
     uint8_t       priority;                   // Priority for fixed-priority scheduling
+    const uint8_t       original_priority;                   // Priority for fixed-priority scheduling
     uint8_t             state;                     // Status for scheduling.
     const uint16_t      period;                     // Number of ticks between activations
-    uint8_t       blockedflag;                //flag to set a blocked task
-    uint8_t       semaphoreflag;              //flag to set a task using a shared resource
+    #if PIP 
+      uint8_t             semaphore_number;
+    #endif
 } Task;
 
 enum state {
     TASK_READY,     // Ready to be executed 
     TASK_RUNNING,   // Currently executing on the processorTASK_DONE
     TASK_WAITING,   // Task is waiting for a resource to be unlocked, like a mutex
+    TASK_BLOCKED,      // Task has completed is job. Shifts to TASK_READY in the next activation period
     TASK_DONE,      // Task has completed is job. Shifts to TASK_READY in the next activation period
     TASK_DEAD       // One-shot tasks that shall not run again
 };
 /****************** FUNCTION DECLARATIONS *************/
 void vPortYieldFromTick( uint8_t ) __attribute__ ( ( naked ) );
-void Sched_Init( void );
+void Sched_Scheduler( void );
 void Sched_Dispatch( void );
 uint8_t *pxPortInitialiseStack( uint8_t* pxTopOfStack, void (*pxCode)(), void *pvParameters );
 
@@ -42,13 +44,8 @@ uint8_t task_count = 0;             // number of tasks registed
 int current_task = 0;                       //currently executing task
 bool from_suspension = false;
 volatile void* volatile pxCurrentTCB = 0;
-#define finish_task()               from_suspension = true; tasks[current_task]->state = TASK_DONE; tasks[current_task]->semaphoreflag = 0; vPortYieldFromTick(0); 
+#define finish_task()               from_suspension = true; tasks[current_task]->state = TASK_DONE; vPortYieldFromTick(0); 
 
-bool semaphore = 1;
-#define PIP 0
-#define PCP 1
-
-#define priority_protocol PIP
 
 
 uint8_t *pxPortInitialiseStack( uint8_t* pxTopOfStack, void (*pxCode)(), void *pvParameters ) {
@@ -95,21 +92,55 @@ uint8_t *pxPortInitialiseStack( uint8_t* pxTopOfStack, void (*pxCode)(), void *p
     return pxTopOfStack;
 }
 
+uint8_t task_counter = 0;
 
-#define TASK(name, pr, fr, initial_delay, stack_sz, task) \
- uint8_t name##_stack[stack_sz]; \
- Task name = { \
-    .stack_ptr = 0, \
-    .stack_size = stack_sz, \
-    .stack_array_ptr = 0, \
-    .func = task , \
-    .delay = DELAY_TO_TICKS(initial_delay), \
-    .priority = pr, \
-    .state = TASK_DONE, \
-    .period = PERIOD(fr), \
-    .blockedflag = 0,     \
-    .semaphoreflag = 0,     \
- }; 
+
+#if PIP
+  #define TASK(name, pr, fr, initial_delay, stack_sz, task) \
+   uint8_t name##_stack[stack_sz]; \
+   void name##_running_function(){\
+       while (true) { \
+          (task)();\
+          finish_task();\
+      } \
+      return; \
+   }\
+   Task name = { \
+      .stack_ptr = 0, \
+      .stack_size = stack_sz, \
+      .stack_array_ptr = 0, \
+      .func = name##_running_function , \
+      .delay = DELAY_TO_TICKS(initial_delay), \
+      .priority = pr, \
+      .original_priority = pr, \
+      .state = TASK_DONE, \
+      .period = DELAY_TO_TICKS(fr), \
+      .semaphore_number = 255,\
+   };
+#endif
+
+#if NORMAL
+  #define TASK(name, pr, fr, initial_delay, stack_sz, task) \
+   uint8_t name##_stack[stack_sz]; \
+   void name##_running_function(){\
+       while (true) { \
+          (task)();\
+          finish_task();\
+      } \
+      return; \
+   }\
+   Task name = { \
+      .stack_ptr = 0, \
+      .stack_size = stack_sz, \
+      .stack_array_ptr = 0, \
+      .func = name##_running_function , \
+      .delay = DELAY_TO_TICKS(initial_delay), \
+      .priority = pr, \
+      .original_priority = pr, \
+      .state = TASK_DONE, \
+      .period = DELAY_TO_TICKS(fr), \
+   }; 
+#endif
 
 
 uint8_t addTask(Task* task, uint8_t* stack_pointer) {
@@ -125,6 +156,7 @@ void hardwareInit(){
     noInterrupts();  // disable all interrupts
 
     TCCR1A = 0;
+    TCCR1B = 0;
     TCNT1 = 0;
     
     OCR1A = TICK_FREQUENCY;
@@ -155,11 +187,11 @@ void vPortYieldFromTick(uint8_t is_tick) {
     // if the new tick value has caused a delay
     // period to expire. This function call can
     // cause a task to become ready to run.
-    if(is_tick) Sched_Init();
+    if(is_tick) Sched_Scheduler();
     
     // See if a context switch is required.
     // Switch to the context of a task made ready
-    // to run by Sched_Init() if it has a
+    // to run by Sched_Scheduler() if it has a
     // priority higher than the interrupted task.
     Sched_Dispatch();
     
@@ -172,10 +204,10 @@ void vPortYieldFromTick(uint8_t is_tick) {
     asm volatile ( "ret" );
 }
 
-void Sched_Init() {
+void Sched_Scheduler() {
     
     for (int i = 0; i < task_count; i++) {
-        if (tasks[i] && tasks[i]->state != TASK_DEAD) {
+        if (tasks[i] && tasks[i]->state != TASK_DEAD && tasks[i]->state != TASK_BLOCKED) {
             if (!tasks[i]->delay) {
                 tasks[i]->state = TASK_READY;
                 tasks[i]->delay = tasks[i]->period;
@@ -191,51 +223,24 @@ void Sched_Init() {
 
 void Sched_Dispatch() { 
 
-    if(tasks[current_task]->state == TASK_RUNNING){
-        tasks[current_task]->state = TASK_WAITING;        
-    }
-    
+    if(tasks[current_task]->state == TASK_RUNNING)
+        tasks[current_task]->state = TASK_WAITING;
+
+
     // find the highest priority task which is ready (i.e., task->priority is lowest)
 
     uint8_t exec_task = 0;
     uint8_t task_prio = 255;
-
-    #if (priority_protocol == PIP)
-      if( (tasks[current_task]->blockedflag == 1) ){
-        for(uint8_t i = 0; i < task_count; i++){
-          if((tasks[i]->semaphoreflag == 1)){
-             exec_task = i; 
-          }
-        }   
-      }
-      else{
-        for(uint8_t i = 0; i < task_count; i++){
-          if(tasks[i] && tasks[i]->priority <= task_prio && (tasks[i]->state == TASK_READY || tasks[i]->state == TASK_WAITING) ) {
+    for(uint8_t i = 0; i < task_count; i++){
+        if(tasks[i] && tasks[i]->priority <= task_prio && (tasks[i]->state == TASK_READY || tasks[i]->state == TASK_WAITING) ) {
             exec_task = i;
             task_prio = tasks[i]->priority;
-          }
         }
-      }
-      
-      tasks[current_task]->blockedflag == 0;
-    #endif
-    
+    }
+
     current_task = exec_task;
     tasks[current_task]->state = TASK_RUNNING;
     pxCurrentTCB = &tasks[current_task]->stack_ptr;
     
     return;
 }
-
-#if (priority_protocol == PIP)
-void blockedtask() {
-  tasks[current_task]->blockedflag = 1;
-  vPortYieldFromTick(0);
-  return;
-}
-
-void semaphoretask(){
-  tasks[current_task]->semaphoreflag = 1;
-  return;
-}
-#endif
