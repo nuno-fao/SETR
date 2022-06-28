@@ -51,9 +51,7 @@ void declareSem(_semaphore *s,int c){
     }\
     else{\
       blocked = true;\
-      if(((Task*)name##_semaphore.task)->priority < t.priority){\
         ((Task*)name##_semaphore.task)->priority = t.priority; \
-      }\
     }\
     if(!blocked){\
       name##_semaphore.task = &t; \

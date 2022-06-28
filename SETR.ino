@@ -1,7 +1,7 @@
-#define NORMAL 0
+#define NORMAL 1
 #define PIP 0
 #define DEADLOCK 0
-#define PCP 1
+#define PCP 0
 
 #define TICK_FREQUENCY      625
 #define STACK_SIZE_DEFAULT  100
