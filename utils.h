@@ -21,6 +21,7 @@ typedef struct {
     const uint16_t      period;                     // Number of ticks between activations
     #if PCP
         _semaphore          *semaphores[MAX_SEMAPHORES];
+        uint8_t             semaphores_counter;
     #endif
 } Task;
 
@@ -141,6 +142,8 @@ uint8_t task_counter = 0;
       .original_priority = pr, \
       .state = TASK_DONE, \
       .period = DELAY_TO_TICKS(fr), \
+      .semaphores = {}, \
+      .semaphores_counter = 0, \
    };
 #endif
 

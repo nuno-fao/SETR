@@ -1,6 +1,6 @@
 #define NORMAL 0
 #define PIP 0
-#define PIPDEADLOCK 0
+#define DEADLOCK 0
 #define PCP 1
 
 #define TICK_FREQUENCY      625
@@ -72,7 +72,7 @@ volatile void delay(){
     CREATE_SEMAPHORE(s2);
     void task1(void);
     TASK(t1, 1, 1000,  0, STACK_SIZE_DEFAULT,task1);
-    #if PIPDEADLOCK
+    #if DEADLOCK
         void task1(void) { 
                 LOCK(s1,t1);
                 LOCK(s2,t1);
@@ -95,7 +95,7 @@ volatile void delay(){
 
     void task3(void);
     TASK(t3, 3, 5000, 0, STACK_SIZE_DEFAULT, task3);
-    #if PIPDEADLOCK
+    #if DEADLOCK
         void task3(void) { 
                 LOCK(s2,t3);
                 for(int i = 0;i< 10;i++){
@@ -121,11 +121,12 @@ volatile void delay(){
 
 #if PCP
     CREATE_SEMAPHORE(s1);
-    CREATE_SEMAPHORE(s2);
+    
     void task1(void);
     TASK(t1, 1, 1000,  0, STACK_SIZE_DEFAULT,task1);
-    #if PIPDEADLOCK
+    #if DEADLOCK
         void task1(void) { 
+                DECLARE(s1,t1);
                 LOCK(s1,t1);
                 LOCK(s2,t1);
                 digitalWrite(d3, !digitalRead(d3));    // Toggle
@@ -134,11 +135,13 @@ volatile void delay(){
         } 
     #else
         void task1(void) { 
+                DECLARE(s1,t1);
                 LOCK(s1,t1);
                 digitalWrite(d3, !digitalRead(d3));    // Toggle
                 UNLOCK(s1);
         } 
     #endif
+
     void task2(void);
     TASK(t2, 2, 1000, 2000, STACK_SIZE_DEFAULT, task2);
     void task2(void) { 
@@ -147,28 +150,15 @@ volatile void delay(){
 
     void task3(void);
     TASK(t3, 3, 5000, 0, STACK_SIZE_DEFAULT, task3);
-    #if PIPDEADLOCK
-        void task3(void) { 
-                LOCK(s2,t3);
-                for(int i = 0;i< 10;i++){
-                    delay();
-                }
-                LOCK(s1,t3);
-                //asyncDelay(4000);
-                digitalWrite(d1, !digitalRead(d1));    // Toggle
-                UNLOCK(s2);
-                UNLOCK(s1);
-        } 
-    #else
-        void task3(void) { 
-            LOCK(s1,t3);
-            for(int i = 0;i< 10;i++){
-                delay();
-            }
-            digitalWrite(d1, !digitalRead(d1));    // Toggle
-            UNLOCK(s1);
-        } 
-    #endif
+    void task3(void) { 
+        DECLARE(s1,t3);
+        LOCK(s1,t3);
+        for(int i = 0;i< 10;i++){
+            delay();
+        }
+        digitalWrite(d1, !digitalRead(d1));    // Toggle
+        UNLOCK(s1,t3);
+    } 
 #endif
 
 void setupFunction() { 
