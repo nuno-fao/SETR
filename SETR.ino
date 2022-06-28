@@ -1,6 +1,6 @@
 #define NORMAL 0
 #define PIP 0
-#define DEADLOCK 1
+#define DEADLOCK 0
 #define PCP 1
 
 #define TICK_FREQUENCY      625

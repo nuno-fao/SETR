@@ -43,7 +43,7 @@ void declareSem(_semaphore *s,int c){
     if(name##_semaphore.task == 0){\
       for (size_t i = 0; i < _semaphore_counter; i++) \
       { \
-        if(semaphore_list[i]->task != 0 && t.priority >= semaphore_list[i]->ceiling){\
+        if(semaphore_list[i]->task != 0 && t.priority >= semaphore_list[i]->ceiling && semaphore_list[i]->task != &t){\
             ((Task*)semaphore_list[i]->task)->priority = t.priority; \
             blocked = true; \
         }\
@@ -51,7 +51,9 @@ void declareSem(_semaphore *s,int c){
     }\
     else{\
       blocked = true;\
-      ((Task*)name##_semaphore.task)->priority = t.priority; \
+      if(((Task*)name##_semaphore.task)->priority < t.priority){\
+        ((Task*)name##_semaphore.task)->priority = t.priority; \
+      }\
     }\
     if(!blocked){\
       name##_semaphore.task = &t; \
