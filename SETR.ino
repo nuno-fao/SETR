@@ -1,6 +1,6 @@
 #define NORMAL 0
 #define PIP 0
-#define DEADLOCK 0
+#define DEADLOCK 1
 #define PCP 1
 
 #define TICK_FREQUENCY      625
@@ -121,24 +121,26 @@ volatile void delay(){
 
 #if PCP
     CREATE_SEMAPHORE(s1);
+    CREATE_SEMAPHORE(s2);
     
     void task1(void);
     TASK(t1, 1, 1000,  0, STACK_SIZE_DEFAULT,task1);
     #if DEADLOCK
-        void task1(void) { 
+        void task1(void) {
                 DECLARE(s1,t1);
+                DECLARE(s2,t1);
                 LOCK(s1,t1);
                 LOCK(s2,t1);
                 digitalWrite(d3, !digitalRead(d3));    // Toggle
-                UNLOCK(s2);
-                UNLOCK(s1);
+                UNLOCK(s2,t1);
+                UNLOCK(s1,t1);
         } 
     #else
         void task1(void) { 
                 DECLARE(s1,t1);
                 LOCK(s1,t1);
                 digitalWrite(d3, !digitalRead(d3));    // Toggle
-                UNLOCK(s1);
+                UNLOCK(s1,t1);
         } 
     #endif
 
@@ -150,15 +152,30 @@ volatile void delay(){
 
     void task3(void);
     TASK(t3, 3, 5000, 0, STACK_SIZE_DEFAULT, task3);
-    void task3(void) { 
-        DECLARE(s1,t3);
-        LOCK(s1,t3);
-        for(int i = 0;i< 10;i++){
-            delay();
-        }
-        digitalWrite(d1, !digitalRead(d1));    // Toggle
-        UNLOCK(s1,t3);
-    } 
+    #if DEADLOCK
+        void task3(void) { 
+                DECLARE(s1,t3);
+                DECLARE(s2,t3);
+                LOCK(s2,t3);
+                for(int i = 0;i< 10;i++){
+                    delay();
+                }
+                LOCK(s1,t3);
+                digitalWrite(d1, !digitalRead(d1));    // Toggle
+                UNLOCK(s2,t3);
+                UNLOCK(s1,t3);
+        } 
+    #else
+        void task3(void) { 
+            DECLARE(s1,t3);
+            LOCK(s1,t3);
+            for(int i = 0;i< 10;i++){
+                delay();
+            }
+            digitalWrite(d1, !digitalRead(d1));    // Toggle
+            UNLOCK(s1,t3);
+        } 
+    #endif
 #endif
 
 void setupFunction() { 
@@ -169,6 +186,15 @@ void setupFunction() {
     pinMode(d4, OUTPUT);
 
     Serial.begin(2000000);
+
+    #if PCP
+        #if DEADLOCK
+            ADD_SEMAPHORE(s1);
+            ADD_SEMAPHORE(s2);
+        #else
+            ADD_SEMAPHORE(s1);
+        #endif
+    #endif
 }
 
 void codeFunction(){
