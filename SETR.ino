@@ -1,7 +1,7 @@
-#define NORMAL 1
+#define NORMAL 0
 #define PIP 0
 #define DEADLOCK 0
-#define PCP 0
+#define PCP 1
 
 #define TICK_FREQUENCY      625
 #define STACK_SIZE_DEFAULT  100
@@ -185,7 +185,6 @@ void setupFunction() {
     pinMode(d1, OUTPUT);
     pinMode(d4, OUTPUT);
 
-    Serial.begin(2000000);
 
     #if PCP
         #if DEADLOCK
