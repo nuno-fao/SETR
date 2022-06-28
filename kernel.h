@@ -1,8 +1,3 @@
-#include "ticks_per_seconds.h"
-
-
-
-
 #if PCP
     #include "pcp.h"
 #endif

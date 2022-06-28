@@ -2,7 +2,7 @@
 #include <avr/interrupt.h>
 #include "assembly.h"
 
-#include "ticks_per_seconds.h"
+#define Hz_1k   62      // compare match register 16MHz/256/1kHz
 
 
 #define DELAY_TO_TICKS(d) (uint16_t)(d*((double)Hz_1k)/((double)TICK_FREQUENCY))
