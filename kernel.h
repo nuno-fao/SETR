@@ -18,22 +18,18 @@ TASK(idle, 255, 0, 0, 40, iddle_task);
     
 
 int kernel(void setup(),void code()) { 
-    /********************** CONFIGURE REQUIRED HARDWARE **********************/
 
+    //run user setup code 
     setup();
-
-    /********************* END OF HARDWARE CONFIGURATION *********************/
 
     addTask(&idle,idle_stack); /* DON'T TOUCH THIS */
 
-    /********************* REGISTER TASKS IN THE KERNEL **********************/
-
+    //run user code
     code();
     
-    /***************************** END OF CODE *******************************/
     
     hardwareInit(); 
     while (true) { 
-        asm("nop"); /* interrrupts will stop this. */ 
+        asm("nop");
     } 
  }

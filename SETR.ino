@@ -53,6 +53,12 @@ volatile void delay(){
             digitalWrite(d3, !digitalRead(d3));    // Toggle
     } 
 
+    void taskd(void);
+    TASK(td, 4, 0,  0, STACK_SIZE_DEFAULT,taskd);
+    void taskd(void) { 
+            digitalWrite(d4, 1);    // Toggle
+    } 
+
 
     void task2(void);
     TASK(t2, 2, 1000, 2000, STACK_SIZE_DEFAULT, task2);
@@ -64,7 +70,7 @@ volatile void delay(){
     TASK(t3, 3, 500, 0, STACK_SIZE_DEFAULT, task3);
     void task3(void) { 
             digitalWrite(d1, !digitalRead(d1));    // Toggle
-    } 
+    }
 #endif
 
 #if PIP
@@ -200,6 +206,9 @@ void codeFunction(){
     addTask(&t1,t1_stack);
     addTask(&t2,t2_stack);
     addTask(&t3,t3_stack);
+    #if NORMAL
+        addTask(&td,td_stack);
+    #endif
 }
 
 int main(){

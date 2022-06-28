@@ -10,15 +10,15 @@
 
 /****************** TYPE DEFENITIONS *************/
 typedef struct {
-    volatile uint8_t*   stack_ptr;                  // Pointer to where pxCurrentTCB should be when switching context
-    uint16_t            stack_size;                 // Size of the allocated stack in bytes
-    uint8_t*            stack_array_ptr;            // Pointer to the task specific stack
-    void                (*func)(void);              // Pointer to task function to execute.
+    volatile uint8_t*   stack_ptr;                  
+    uint16_t            stack_size;                 
+    uint8_t*            stack_array_ptr;            
+    void                (*func)(void);              
     uint16_t            delay;                      
-    uint8_t       priority;                   // Priority for fixed-priority scheduling
-    const uint8_t       original_priority;                   // Priority for fixed-priority scheduling
-    uint8_t             state;                     // Status for scheduling.
-    const uint16_t      period;                     // Number of ticks between activations
+    uint8_t       priority;                   
+    const uint8_t       original_priority;                   
+    uint8_t             state;                     
+    const uint16_t      period;                     
     #if PCP
         _semaphore          *semaphores[MAX_SEMAPHORES];
         uint8_t             semaphores_counter;
@@ -29,9 +29,9 @@ typedef struct {
 
 enum state {
     TASK_READY,     // Ready to be executed 
-    TASK_RUNNING,   // Currently executing on the processorTASK_DONE
-    TASK_WAITING,   // Task is waiting for a resource to be unlocked, like a mutex
-    TASK_BLOCKED,      // Task has completed is job. Shifts to TASK_READY in the next activation period
+    TASK_RUNNING,   // Currently executing on the processor
+    TASK_WAITING,   // Task is waiting for a resource to be unlocked
+    TASK_BLOCKED,   // Task is blocked, waiting for a resource to be unlocked
     TASK_DONE,      // Task has completed is job. Shifts to TASK_READY in the next activation period
     TASK_DEAD       // One-shot tasks that shall not run again
 };
@@ -233,7 +233,6 @@ void vPortYieldFromTick(uint8_t is_tick) {
 }
 
 void Sched_Scheduler() {
-    
     for (int i = 0; i < task_count; i++) {
         if (tasks[i] && tasks[i]->state != TASK_DEAD && tasks[i]->state != TASK_BLOCKED) {
             if (!tasks[i]->delay) {
@@ -270,5 +269,9 @@ void Sched_Dispatch() {
     tasks[current_task]->state = TASK_RUNNING;
     pxCurrentTCB = &tasks[current_task]->stack_ptr;
     
+    if(tasks[current_task]->period == 0){
+        tasks[current_task]->state = TASK_DONE;
+    }
+
     return;
 }
