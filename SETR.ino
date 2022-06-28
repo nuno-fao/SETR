@@ -15,16 +15,6 @@
 #define d3  13
 #define d4  10
 
-CREATE_SEMAPHORE(s1);
-
-void task1(void);
-TASK(t1, 1, 1000,  0, STACK_SIZE_DEFAULT,task1);
-void task1(void) { 
-        LOCK(s1,t1);
-        digitalWrite(d3, !digitalRead(d3));    // Toggle
-        UNLOCK(s1);
-} 
-
 void asyncDelay(int ms){
     tasks[current_task]->state = TASK_READY;
     tasks[current_task]->delay+=DELAY_TO_TICKS(ms);
@@ -56,24 +46,56 @@ volatile void delay(){
 
 }
 
-void task2(void);
-TASK(t2, 2, 1000, 2000, STACK_SIZE_DEFAULT, task2);
-void task2(void) { 
-        digitalWrite(d2, !digitalRead(d2));
-} 
+#if NORMAL
+    CREATE_SEMAPHORE(s1);
+    void task1(void);
+    TASK(t1, 1, 1000,  0, STACK_SIZE_DEFAULT,task1);
+    void task1(void) { 
+            digitalWrite(d3, !digitalRead(d3));    // Toggle
+    } 
 
-void task3(void);
-TASK(t3, 3, 5000, 0, STACK_SIZE_DEFAULT, task3);
-void task3(void) { 
-        LOCK(s1,t3);
-        //asyncDelay(4000);
-        for(int i = 0;i< 10;i++){
-            delay();
-        }
-        digitalWrite(d1, !digitalRead(d1));    // Toggle
-        UNLOCK(s1);
-} 
 
+    void task2(void);
+    TASK(t2, 2, 1000, 2000, STACK_SIZE_DEFAULT, task2);
+    void task2(void) { 
+            digitalWrite(d2, !digitalRead(d2));
+    } 
+
+    void task3(void);
+    TASK(t3, 3, 500, 0, STACK_SIZE_DEFAULT, task3);
+    void task3(void) { 
+            digitalWrite(d1, !digitalRead(d1));    // Toggle
+    } 
+#endif
+
+#if PIP
+    CREATE_SEMAPHORE(s1);
+    void task1(void);
+    TASK(t1, 1, 1000,  0, STACK_SIZE_DEFAULT,task1);
+    void task1(void) { 
+            LOCK(s1,t1);
+            digitalWrite(d3, !digitalRead(d3));    // Toggle
+            UNLOCK(s1);
+    } 
+
+    void task2(void);
+    TASK(t2, 2, 1000, 2000, STACK_SIZE_DEFAULT, task2);
+    void task2(void) { 
+            digitalWrite(d2, !digitalRead(d2));
+    } 
+
+    void task3(void);
+    TASK(t3, 3, 5000, 0, STACK_SIZE_DEFAULT, task3);
+    void task3(void) { 
+            LOCK(s1,t3);
+            //asyncDelay(4000);
+            for(int i = 0;i< 10;i++){
+                delay();
+            }
+            digitalWrite(d1, !digitalRead(d1));    // Toggle
+            UNLOCK(s1);
+    } 
+#endif
 
 void setupFunction() { 
     /********************** CONFIGURE REQUIRED HARDWARE **********************/

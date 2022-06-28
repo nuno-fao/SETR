@@ -8,23 +8,19 @@ uint8_t _semaphore_counter = 0;
     
 #define LOCK(name,t) \
     noInterrupts(); \
-    while(true){ \
-      if(name##_semaphore.task == 0){ \
-        name##_semaphore.task = &t; \
+    if(name##_semaphore.task == 0){ \
+      name##_semaphore.task = &t; \
+      interrupts(); \
+    }else{ \
+      if(t.priority < name##_semaphore.task->priority){ \
+        name##_semaphore.task->priority = t.priority; \
+        t.state = TASK_BLOCKED; \
+        t.semaphore_number = name##_semaphore.uuid; \
         interrupts(); \
-        break; \
-      }else{ \
-        if(t.priority < name##_semaphore.task->priority){ \
-          name##_semaphore.task->priority = t.priority; \
-          t.state = TASK_BLOCKED; \
-          t.semaphore_number = name##_semaphore.uuid; \
-          interrupts(); \
-          vPortYieldFromTick(0); \
-          noInterrupts(); \
-        } \
-        else{ \
-          interrupts(); \
-        } \
+        vPortYieldFromTick(0); \
+      } \
+      else{ \
+        interrupts(); \
       } \
     } 
 
@@ -32,7 +28,7 @@ uint8_t _semaphore_counter = 0;
     noInterrupts(); \
     name##_semaphore.task->priority = name##_semaphore.task->original_priority; \
     for (int i = 0; i < task_count; i++) { \
-      if(tasks[i]->state == TASK_BLOCKED){ \
+      if(tasks[i]->state == TASK_BLOCKED && tasks[i]->semaphore_number == name##_semaphore.uuid){ \
         tasks[i]->state = TASK_WAITING; \
       } \
     } \
