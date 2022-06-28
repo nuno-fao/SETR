@@ -1,14 +1,14 @@
-
 #define NORMAL 0
-#define PIP 1
-#define PCP 0
+#define PIP 0
+#define PIPDEADLOCK 0
+#define PCP 1
 
 #define TICK_FREQUENCY      625
 #define STACK_SIZE_DEFAULT  100
 #define MAX_TASKS           20
+#define MAX_SEMAPHORES      2
 
 #include "kernel.h"
-
 
 #define d1  11
 #define d2  12
@@ -47,7 +47,6 @@ volatile void delay(){
 }
 
 #if NORMAL
-    CREATE_SEMAPHORE(s1);
     void task1(void);
     TASK(t1, 1, 1000,  0, STACK_SIZE_DEFAULT,task1);
     void task1(void) { 
@@ -70,14 +69,24 @@ volatile void delay(){
 
 #if PIP
     CREATE_SEMAPHORE(s1);
+    CREATE_SEMAPHORE(s2);
     void task1(void);
     TASK(t1, 1, 1000,  0, STACK_SIZE_DEFAULT,task1);
-    void task1(void) { 
-            LOCK(s1,t1);
-            digitalWrite(d3, !digitalRead(d3));    // Toggle
-            UNLOCK(s1);
-    } 
-
+    #if PIPDEADLOCK
+        void task1(void) { 
+                LOCK(s1,t1);
+                LOCK(s2,t1);
+                digitalWrite(d3, !digitalRead(d3));    // Toggle
+                UNLOCK(s2);
+                UNLOCK(s1);
+        } 
+    #else
+        void task1(void) { 
+                LOCK(s1,t1);
+                digitalWrite(d3, !digitalRead(d3));    // Toggle
+                UNLOCK(s1);
+        } 
+    #endif
     void task2(void);
     TASK(t2, 2, 1000, 2000, STACK_SIZE_DEFAULT, task2);
     void task2(void) { 
@@ -86,15 +95,80 @@ volatile void delay(){
 
     void task3(void);
     TASK(t3, 3, 5000, 0, STACK_SIZE_DEFAULT, task3);
-    void task3(void) { 
+    #if PIPDEADLOCK
+        void task3(void) { 
+                LOCK(s2,t3);
+                for(int i = 0;i< 10;i++){
+                    delay();
+                }
+                LOCK(s1,t3);
+                //asyncDelay(4000);
+                digitalWrite(d1, !digitalRead(d1));    // Toggle
+                UNLOCK(s2);
+                UNLOCK(s1);
+        } 
+    #else
+        void task3(void) { 
             LOCK(s1,t3);
-            //asyncDelay(4000);
             for(int i = 0;i< 10;i++){
                 delay();
             }
             digitalWrite(d1, !digitalRead(d1));    // Toggle
             UNLOCK(s1);
+        } 
+    #endif
+#endif
+
+#if PCP
+    CREATE_SEMAPHORE(s1);
+    CREATE_SEMAPHORE(s2);
+    void task1(void);
+    TASK(t1, 1, 1000,  0, STACK_SIZE_DEFAULT,task1);
+    #if PIPDEADLOCK
+        void task1(void) { 
+                LOCK(s1,t1);
+                LOCK(s2,t1);
+                digitalWrite(d3, !digitalRead(d3));    // Toggle
+                UNLOCK(s2);
+                UNLOCK(s1);
+        } 
+    #else
+        void task1(void) { 
+                LOCK(s1,t1);
+                digitalWrite(d3, !digitalRead(d3));    // Toggle
+                UNLOCK(s1);
+        } 
+    #endif
+    void task2(void);
+    TASK(t2, 2, 1000, 2000, STACK_SIZE_DEFAULT, task2);
+    void task2(void) { 
+            digitalWrite(d2, !digitalRead(d2));
     } 
+
+    void task3(void);
+    TASK(t3, 3, 5000, 0, STACK_SIZE_DEFAULT, task3);
+    #if PIPDEADLOCK
+        void task3(void) { 
+                LOCK(s2,t3);
+                for(int i = 0;i< 10;i++){
+                    delay();
+                }
+                LOCK(s1,t3);
+                //asyncDelay(4000);
+                digitalWrite(d1, !digitalRead(d1));    // Toggle
+                UNLOCK(s2);
+                UNLOCK(s1);
+        } 
+    #else
+        void task3(void) { 
+            LOCK(s1,t3);
+            for(int i = 0;i< 10;i++){
+                delay();
+            }
+            digitalWrite(d1, !digitalRead(d1));    // Toggle
+            UNLOCK(s1);
+        } 
+    #endif
 #endif
 
 void setupFunction() { 

@@ -2,16 +2,17 @@
 
 
 
+
+#if PCP
+    #include "pcp.h"
+#endif
 #include "utils.h" // DO NOT MOVE THIS LINE
-#include "pip.h"
 
 
 
-typedef struct {
-      Task *task;
-      uint8_t uuid;
-} _semaphore;
-
+#if PIP
+    #include "pip.h"
+#endif
 
 void iddle_task(void) { 
      finish_task();

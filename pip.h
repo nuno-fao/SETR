@@ -1,9 +1,12 @@
 uint8_t _semaphore_counter = 0;
 
+typedef struct {
+      Task *task;
+} _semaphore;
+
 #define CREATE_SEMAPHORE(name) \
     _semaphore name##_semaphore = { \
       .task = 0, \
-      .uuid = _semaphore_counter++, \
     }; 
     
 #define LOCK(name,t) \
@@ -14,17 +17,10 @@ uint8_t _semaphore_counter = 0;
         interrupts(); \
         break; \
       }else{ \
-        if(t.priority < name##_semaphore.task->priority){ \
           name##_semaphore.task->priority = t.priority; \
           t.state = TASK_BLOCKED; \
-          t.semaphore_number = name##_semaphore.uuid; \
           interrupts(); \
           vPortYieldFromTick(0); \
-          noInterrupts(); \
-        } \
-        else{ \
-          interrupts(); \
-        } \
       } \
     } 
 

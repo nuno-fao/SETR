@@ -4,6 +4,7 @@
 
 #include "ticks_per_seconds.h"
 
+
 #define DELAY_TO_TICKS(d) (uint16_t)(d*((double)Hz_1k)/((double)TICK_FREQUENCY))
 
 
@@ -18,10 +19,12 @@ typedef struct {
     const uint8_t       original_priority;                   // Priority for fixed-priority scheduling
     uint8_t             state;                     // Status for scheduling.
     const uint16_t      period;                     // Number of ticks between activations
-    #if PIP 
-      uint8_t             semaphore_number;
+    #if PCP
+        _semaphore          *semaphores[MAX_SEMAPHORES];
     #endif
 } Task;
+
+
 
 enum state {
     TASK_READY,     // Ready to be executed 
@@ -115,7 +118,29 @@ uint8_t task_counter = 0;
       .original_priority = pr, \
       .state = TASK_DONE, \
       .period = DELAY_TO_TICKS(fr), \
-      .semaphore_number = 255,\
+   };
+#endif
+
+#if PCP
+  #define TASK(name, pr, fr, initial_delay, stack_sz, task) \
+   uint8_t name##_stack[stack_sz]; \
+   void name##_running_function(){\
+       while (true) { \
+          (task)();\
+          finish_task();\
+      } \
+      return; \
+   }\
+   Task name = { \
+      .stack_ptr = 0, \
+      .stack_size = stack_sz, \
+      .stack_array_ptr = 0, \
+      .func = name##_running_function , \
+      .delay = DELAY_TO_TICKS(initial_delay), \
+      .priority = pr, \
+      .original_priority = pr, \
+      .state = TASK_DONE, \
+      .period = DELAY_TO_TICKS(fr), \
    };
 #endif
 
